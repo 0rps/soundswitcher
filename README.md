@@ -1,7 +1,7 @@
 # soundswitcher
 Simple UI utility to switch between different sound outputs(sinks) in Linux with PulseAudio.
 
-It is created to avoid using pulseaudio control panel for choosing corrent sound output.
+It is created to avoid using pulseaudio control panel for choosing corrent sound output every time new device is added.
 
 ![img.png](resources/img.png)
 

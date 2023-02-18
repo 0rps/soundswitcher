@@ -3,78 +3,55 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/mafik/pulseaudio"
 	"github.com/visualfc/atk/tk"
 )
 
-type PulseAudioOutput struct {
-	Output   pulseaudio.Output
-	Name     string
-	IsActive bool
-}
+const (
+	btnEscapeCode = 9
+	btnEnterCode  = 36
 
-type OutputsByName []PulseAudioOutput
-
-func (a OutputsByName) Len() int           { return len(a) }
-func (a OutputsByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a OutputsByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-func getPulseAudioOutputs(client *pulseaudio.Client) []PulseAudioOutput {
-	outs, activeIndex, err := client.Outputs()
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	result := make([]PulseAudioOutput, len(outs))
-	for i, out := range outs {
-		name := fmt.Sprintf("%s (%s)", out.CardName, out.PortName)
-		result[i] = PulseAudioOutput{out, name, i == activeIndex}
-	}
-	sort.Sort(OutputsByName(result))
-	return result
-}
+	mwWidth  = 500
+	mwHeight = 400
+)
 
 type Window struct {
 	*tk.Window
 
-	client *pulseaudio.Client
-
-	soundOutputs       []PulseAudioOutput
-	soundOutputButtons []*tk.RadioButton
+	radioGroup *tk.RadioGroup
 }
 
-func NewWindow(client *pulseaudio.Client) *Window {
-	outputs := getPulseAudioOutputs(client)
-	mw := &Window{client: client, soundOutputs: outputs}
+func NewWindow(audioOutputs []PulseAudioOutput) *Window {
+	mw := &Window{
+		Window:     tk.NewWindow(),
+		radioGroup: tk.NewRadioGroup(),
+	}
 
-	mw.Window = tk.RootWindow()
 	vbox := tk.NewVPackLayout(mw)
-
-	rgroup := tk.NewRadioGroup()
-	for i, v := range mw.soundOutputs {
-		btn := rgroup.AddNewRadio(mw, v.Name, i)
+	for _, v := range audioOutputs {
+		btn := mw.radioGroup.AddNewRadio(mw, v.Name, v)
 		if v.IsActive {
 			btn.SetChecked(true)
+			btn.SetFocus()
 		}
-		mw.soundOutputButtons = append(mw.soundOutputButtons, btn)
 		vbox.AddWidget(btn, tk.PackAttrFillBoth(), tk.PackAttrExpand(true))
 	}
+
 	mw.BindKeyEvent(mw.OnKeyEvent)
 	return mw
 }
 
 func (w *Window) OnKeyEvent(e *tk.KeyEvent) {
-	if e.KeyCode == 36 { // enter
-		for index, rbutton := range w.soundOutputButtons {
-			if rbutton.IsFocus() {
-				w.soundOutputs[index].Output.Activate()
+	if e.KeyCode == btnEnterCode {
+		for _, radioBtn := range w.radioGroup.RadioList() {
+			if radioBtn.IsFocus() {
+				soundOutput := w.radioGroup.RadioData(radioBtn).(PulseAudioOutput)
+				soundOutput.Output.Activate()
 				os.Exit(0)
 			}
 		}
-	} else if e.KeyCode == 9 { // esc
+	} else if e.KeyCode == btnEscapeCode {
 		os.Exit(0)
 	}
 }
@@ -89,9 +66,9 @@ func main() {
 	defer client.Close()
 
 	tk.MainLoop(func() {
-		mw := NewWindow(client)
+		mw := NewWindow(getPulseAudioOutputs(client))
 		mw.SetTitle("Sound Output Switcher")
-		mw.SetSizeN(500, 400)
+		mw.SetSizeN(mwWidth, mwHeight)
 		mw.Center(nil)
 		mw.ShowNormal()
 	})

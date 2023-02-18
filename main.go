@@ -39,6 +39,10 @@ func NewWindow(audioOutputs []PulseAudioOutput) *Window {
 	}
 
 	mw.BindKeyEvent(mw.OnKeyEvent)
+	mw.OnClose(func() bool {
+		os.Exit(0)
+		return false
+	})
 	return mw
 }
 
@@ -64,7 +68,6 @@ func main() {
 	}
 
 	defer client.Close()
-
 	tk.MainLoop(func() {
 		mw := NewWindow(getPulseAudioOutputs(client))
 		mw.SetTitle("Sound Output Switcher")
